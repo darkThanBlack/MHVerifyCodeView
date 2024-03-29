@@ -1,116 +1,143 @@
+//
+//  VerifyCodeView.swift
+//
+//  Created by moonShadow on 2024/03/22
+//  Copyright © 2024 jiejing. All rights reserved.
+//
+//  LICENSE: SAME AS REPOSITORY
+//  Contact me: [GitHub](https://github.com/darkThanBlack)
+//
 
 import UIKit
 
-class VerifyCodeSingleView: UILabel{
+/// Simple verify code field.
+/// TODO: iOS 11.x auto input support needed...
+///
+/// refer: https://github.com/feaskters/MHVerifyCodeView/blob/master/MHVerifyCodeView/
+public class MHVerifyCodeView: UIView, UITextFieldDelegate {
     
-    override init(frame: CGRect) {
-        super.init(frame: frame)
-        self.layer.borderColor = UIColor.lightGray.cgColor
-        self.layer.borderWidth = 0.5
-        self.textAlignment = .center
-        self.font = UIFont.systemFont(ofSize: 16)
-        self.textColor = .black
+    // MARK: Interface
+    
+    ///
+    public var completedHandler: ((_ verifyCode: String) -> Void)?
+    
+    ///
+    public func setupDefItem(count: Int = 4, configer: ((_ label: UILabel) -> Void)? = nil) {
+        setupItem(count: count, builder: { _ in
+            let label = UILabel()
+            label.backgroundColor = .white
+            label.layer.masksToBounds = true
+            label.layer.cornerRadius = 8.0
+            label.textAlignment = .center
+            label.font = UIFont.systemFont(ofSize: 23, weight: .medium)
+            label.textColor = UIColor(red: 61 / 255.0, green: 61 / 255.0, blue: 61 / 255.0, alpha: 1.0)
+            configer?(label)
+            return label
+        })
     }
     
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-    }
+    // MARK: Customable
     
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        super.touchesBegan(touches, with: event)
-    }
-}
-
-public class MHVerifyCodeView: UIStackView, UITextFieldDelegate {
-    
-    var verifyCodes: [VerifyCodeSingleView]!
-    
-    /**验证码字体*/
-    public var font: UIFont = UIFont.systemFont(ofSize: 16) {
-        didSet{
-            for verifyCode in self.verifyCodes{
-                verifyCode.font = font
-            }
+    ///
+    public func setupItem(count: Int, builder: ((_ index: Int) -> UIView)?) {
+        stacks.arrangedSubviews.forEach({ $0.removeFromSuperview() })
+        
+        let arranges = (0..<count).compactMap({ builder?($0) })
+        arranges.forEach { item in
+            stacks.addArrangedSubview(item)
+            [item].forEach({
+                $0.translatesAutoresizingMaskIntoConstraints = false
+            })
+            NSLayoutConstraint.activate([
+                item.widthAnchor.constraint(equalTo: stacks.heightAnchor, constant: 0.0),
+                item.heightAnchor.constraint(equalTo: stacks.heightAnchor, constant: 0.0)
+            ])
         }
     }
     
-    /**验证码数量*/
-    public var verifyCount: Int? {
-        didSet{
-            for _ in Range(0...(verifyCount ?? 4) - 1) {
-                let singleView = VerifyCodeSingleView(frame: CGRect(x: 0, y: 0, width: 0, height: 0))
-                verifyCodes.append(singleView)
-                self.addArrangedSubview(singleView)
-            }
-        }
-    }
-    
-    /**验证码输入完成后的回调闭包，返回参数为验证码*/
-    var completeHandler: ((_ verifyCode: String) -> Void)!
-    
-    //隐藏的输入框
-    lazy var hideTextField: UITextField = {
+    ///
+    public lazy var field: UITextField = {
         let textfield = UITextField()
-        self.addSubview(textfield)
         textfield.isHidden = true
         textfield.keyboardType = .numberPad
         textfield.delegate = self
         return textfield
     }()
     
+    ///
+    public lazy var stacks: UIStackView = {
+        let stacks = UIStackView()
+        stacks.axis = .horizontal
+        stacks.alignment = .center
+        stacks.distribution = .equalSpacing
+        return stacks
+    }()
+    
+    ///
+    private var items: [UILabel] {
+        return stacks.arrangedSubviews.compactMap({ $0 as? UILabel })
+    }
+    
+    //MARK: Life Cycle
+    
+    ///
+    public convenience init(count: Int = 4, completed: ((_ verifyCode: String) -> Void)?) {
+        self.init(frame: .zero)
+        
+        setupDefItem(count: count)
+        completedHandler = completed
+    }
+    
     override init(frame: CGRect) {
         super.init(frame: frame)
-        self.axis = .horizontal
-        self.distribution = .fillEqually
-        verifyCodes = []
-        verifyCount = 4
+        
+        loadViews(in: self)
+        
+        isUserInteractionEnabled = true
+        let singleTap = UITapGestureRecognizer(target: self, action: #selector(showFieldEvent(gesture:)))
+        singleTap.numberOfTapsRequired = 1
+        singleTap.numberOfTouchesRequired = 1
+        addGestureRecognizer(singleTap)
     }
     
-    /**
-     - parameter complete: 验证完成回调闭包，返回参数为验证码
-     */
-    public convenience init(complete: @escaping (_ verifyCode: String) -> Void) {
-        self.init()
-        setCompleteHandler(complete: complete)
-    }
-    
-    required init(coder: NSCoder) {
+    required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     
-    /**设置验证码输入完成后的回调闭包*/
-    public func setCompleteHandler(complete: @escaping (_ verifyCode: String) -> Void) {
-        self.completeHandler = complete
+    //MARK: View
+    
+    private func loadViews(in box: UIView) {
+        [field, stacks].forEach({
+            box.addSubview($0)
+            $0.translatesAutoresizingMaskIntoConstraints = false
+            NSLayoutConstraint.activate([
+                $0.topAnchor.constraint(equalTo: box.topAnchor, constant: 0.0),
+                $0.leftAnchor.constraint(equalTo: box.leftAnchor, constant: 0.0),
+                $0.rightAnchor.constraint(equalTo: box.rightAnchor, constant: 0.0),
+                $0.bottomAnchor.constraint(equalTo: box.bottomAnchor, constant: 0.0),
+            ])
+        })
     }
     
     public func textFieldDidChangeSelection(_ textField: UITextField) {
-        guard textField.text!.count <= (verifyCount ?? 4) else {
-            textField.text = String(textField.text!.prefix(4))
+        let text = textField.text ?? ""
+        guard text.count <= items.count else {
+            textField.text = String(text.prefix(items.count))
             return
         }
         
-        var index = 0
-        for char in textField.text! {
-            verifyCodes[index].text = String(char)
-            index += 1
-        }
-        guard index < (verifyCount ?? 4) else {
-            
-            self.endEditing(true)
-            
-            if let complete = self.completeHandler {
-                complete(textField.text!)
-            }
-            return
-        }
-        for i in Range(index...(verifyCount ?? 4) - 1) {
-            verifyCodes[i].text = ""
+        items.forEach({ $0.text = "" })
+        for (index, char) in text.enumerated() {
+            items[index].text = String(char)
         }
         
+        if (text.count == items.count) {
+            endEditing(true)
+            completedHandler?(text)
+        }
     }
     
-    public override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        hideTextField.becomeFirstResponder()
+    @objc private func showFieldEvent(gesture: UITapGestureRecognizer) {
+        field.becomeFirstResponder()
     }
-    
 }

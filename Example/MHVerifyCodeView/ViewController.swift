@@ -13,30 +13,42 @@ class ViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
-        let count = 4
-        let spacing: CGFloat = 10
-        let height: CGFloat = 50
-        let width: CGFloat = height * CGFloat(count) + spacing * CGFloat(count - 1)
         
-        let verifyCodeView = MHVerifyCodeView.init { (vc) in
-            let alert = UIAlertController.init(title: "验证码", message: vc, preferredStyle: .alert)
-            alert.addAction(UIAlertAction.init(title: "确定", style: .cancel, handler: nil))
-            self.show(alert, sender: nil)
+        loadViews(in: view)
+    }
+    
+    // MARK: View
+    
+    private func loadViews(in box: UIView) {
+        box.backgroundColor = .lightGray
+        
+        box.addSubview(mhField)
+        [mhField].forEach({
+            $0.translatesAutoresizingMaskIntoConstraints = false
+        })
+        NSLayoutConstraint.activate([
+            mhField.centerYAnchor.constraint(equalTo: box.centerYAnchor, constant: 0.0),
+            
+            mhField.leftAnchor.constraint(equalTo: box.leftAnchor, constant: 0.0),
+            mhField.rightAnchor.constraint(equalTo: box.rightAnchor, constant: 0.0),
+            
+            mhField.heightAnchor.constraint(equalToConstant: 64.0),
+        ])
+    }
+    
+    private func shouldSendCode(_ code: String) {
+        let message = "shouldSendCode, code=\(code)"
+        print("MOON__Log" + message)
+        let alert = UIAlertController(title: "Hint", message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "ok", style: .default))
+        present(alert, animated: true)
+    }
+    
+    private lazy var mhField: MHVerifyCodeView = {
+        let field = MHVerifyCodeView { [weak self] code in
+            self?.shouldSendCode(code)
         }
-        verifyCodeView.verifyCount = count
-        
-        verifyCodeView.spacing = spacing
-        
-        verifyCodeView.frame = CGRect(x: (UIScreen.main.bounds.width - width) / 2, y: (UIScreen.main.bounds.height - height) / 2, width: width, height: height)
-        
-        self.view.addSubview(verifyCodeView)
-    }
-
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
-
+        return field
+    }()
 }
 
